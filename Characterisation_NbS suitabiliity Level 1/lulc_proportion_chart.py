@@ -2,8 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# To run this script, you first need to download the CORINE LULC zonal statistics CSV using the lulc_proportion.js script
+# https://github.com/desirmed/WP4-Tasks/blob/main/Characterisation_NbS%20suitabiliity%20Level%201/lulc_proportions.js
+
 # Load your data
-file_path = r"C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\Cleaned_CORINE_Zonal_Stats.csv"
+file_path = r"C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\Cleaned_CORINE_Zonal_Stats.csv" # change it with your directory
+
 df = pd.read_csv(file_path)
 
 # Clean column names if needed
