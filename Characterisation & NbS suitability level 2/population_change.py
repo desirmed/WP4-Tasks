@@ -35,7 +35,7 @@ download(data_url + gpw_pop_2020)
 
 
 #Zoom to meditaranean
-
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -44,9 +44,15 @@ import os
 import xrspatial
 
 # File paths
-data_folder = r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\data'
-pop2010_path = os.path.join(data_folder, 'gpw-v4-population-count-rev11_2010_2pt5_min_tif', 'gpw_v4_population_count_rev11_2010_2pt5_min.tif')
-pop2020_path = os.path.join(data_folder, 'gpw-v4-population-count-rev11_2020_2pt5_min_tif', 'gpw_v4_population_count_rev11_2020_2pt5_min.tif')
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+inp_dir = os.path.join(parent_dir, "data", "input")
+pop2010_path = os.path.join(inp_dir, 'gpw-v4-population-count-rev11_2010_2pt5_min_tif', 'gpw_v4_population_count_rev11_2010_2pt5_min.tif')
+pop2020_path = os.path.join(inp_dir, 'gpw-v4-population-count-rev11_2020_2pt5_min_tif', 'gpw_v4_population_count_rev11_2020_2pt5_min.tif')
+out_dir = os.path.join(parent_dir, "data", "output")
+output_dir = os.path.join(out_dir, "population_change")
+os.makedirs(output_dir, exist_ok=True) #make sure output directory exists
+
 
 # Load rasters
 pop2010 = rxr.open_rasterio(pop2010_path, mask_and_scale=True).squeeze()
@@ -82,5 +88,5 @@ ax.set_title(" Mediterranean Population Change Classes (2010–2020)", y=1.02)
 ax.axis('off')
 
 plt.tight_layout()
-#plt.savefig("population_change_mediterranean.png", dpi=300)
+plt.savefig(os.path.join(output_dir, "population_change_mediterranean.png"), dpi=300)
 plt.show()
