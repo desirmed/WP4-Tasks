@@ -9,10 +9,10 @@ from urllib.request import urlretrieve
 
 # Initialize Earth Engine
 try:
-    ee.Initialize(project='desirmed-476512')  # Replace with your GEE project ID
+    ee.Initialize(project='xxxxx')  # Replace with your GEE project ID
 except Exception:
     ee.Authenticate()
-    ee.Initialize(project='desirmed-476512')  # Replace with your GEE project ID
+    ee.Initialize(project='xxxxx')  # Replace with your GEE project ID
 
 # GHS-OBAT assets per country
 ghs_obat_iso_assets = {
