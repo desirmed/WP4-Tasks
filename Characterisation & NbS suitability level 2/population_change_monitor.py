@@ -2,9 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import linregress
+import os
 
 # === Load the cleaned long-format population dataset ===
-file_path = r"C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\CLEAN_ZonalPop_ByRegion_1975_2030.csv"
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+inp_dir = os.path.join(parent_dir, "data", "input")
+file_path = os.path.join(inp_dir, "CLEAN_ZonalPop_ByRegion_1975_2030.csv")
 df = pd.read_csv(file_path)
 
 # === Compute growth trend (slope) for each region ===
