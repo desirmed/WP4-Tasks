@@ -24,28 +24,30 @@ road_colors = {
 # -------------------------------
 # Region info + appropriate projected CRS
 # -------------------------------
+# Get the directory of the current script
+
+
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+out_dir = os.path.join(parent_dir, "data", "output")
+boundaries_dir = os.path.join(parent_dir, "Demo Boundaries")
+roads_path = os.path.join(parent_dir, "data", "input", "GRIP4_Region4_vector_shp", "GRIP4_region4.shp")
+# Create output folders
+output_dir = os.path.join(out_dir, "road_outputs")
+os.makedirs(output_dir, exist_ok=True) #make sure output directory exists
+
+
+# Load shapefiles
 regions_info = [
-    {'region': 'Split_Dalmatia', 'country': 'Croatia', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Croatia\Split_Dalmatia.shp'},
-    {'region': 'Macedonia_Thrace', 'country': 'Greece', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Greece\Macedonia_Thrace.shp'},
-    {'region': 'Potenza', 'country': 'Italy', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Italy\Potenza.shp'},
-    {'region': 'Corse_du_Sud', 'country': 'France', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\France\Corse_du_Sud.shp'},
-    {'region': 'Sardegna', 'country': 'Italy', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Italy\Sardegna.shp'},
-    {'region': 'Beiras_Centro', 'country': 'Portugal', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Portugal\Beiras_Centro.shp'},
-    {'region': 'Nicosia', 'country': 'Cyprus', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Cyprus\Nicosia.shp'},
-    {'region': 'Valencia', 'country': 'Spain', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Spain\Valencia.shp'}
+    {'region': 'Split_Dalmatia', 'country': 'Croatia', 'shapefile': os.path.join(boundaries_dir, "Croatia", "Split_Dalmatia.shp")},
+    {'region': 'Macedonia_Thrace', 'country': 'Greece', 'shapefile': os.path.join(boundaries_dir, "Greece", "Macedonia_Thrace.shp")},
+    {'region': 'Potenza', 'country': 'Italy', 'shapefile': os.path.join(boundaries_dir, "Italy", "Potenza.shp")},
+    {'region': 'Corse_du_Sud', 'country': 'France', 'shapefile': os.path.join(boundaries_dir, "France", "Corse_du_Sud.shp")},
+    {'region': 'Sardegna', 'country': 'Italy', 'shapefile': os.path.join(boundaries_dir, "Italy", "Sardegna.shp")},
+    {'region': 'Beiras_Centro', 'country': 'Portugal', 'shapefile': os.path.join(boundaries_dir, "Portugal", "Beiras_Centro.shp")},
+    {'region': 'Nicosia', 'country': 'Cyprus', 'shapefile': os.path.join(boundaries_dir, "Cyprus", "Nicosia.shp")},
+    {'region': 'Valencia', 'country': 'Spain', 'shapefile': os.path.join(boundaries_dir, "Spain", "Valencia.shp")}
 ]
-
-
-# -------------------------------
-# GRIP4 Roads shapefile (local)
-# -------------------------------
-roads_path = r"C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\Roads\GRIP4_Region4_vector_shp\GRIP4_region4.shp"
-
-# -------------------------------
-# Output directory for maps and plots
-# -------------------------------
-output_dir = "road_outputs"
-os.makedirs(output_dir, exist_ok=True)
 
 # -------------------------------
 # Try encoding helper
