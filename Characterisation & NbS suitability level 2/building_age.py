@@ -9,10 +9,10 @@ from urllib.request import urlretrieve
 
 # Initialize Earth Engine
 try:
-    ee.Initialize(project='XXXXXXXXXXXXX')  # Replace with your GEE project ID
+    ee.Initialize(project='desirmed-476512')  # Replace with your GEE project ID
 except Exception:
     ee.Authenticate()
-    ee.Initialize(project='XXXXXXXXXXXXX')
+    ee.Initialize(project='desirmed-476512')  # Replace with your GEE project ID
 
 # GHS-OBAT assets per country
 ghs_obat_iso_assets = {
@@ -25,21 +25,27 @@ ghs_obat_iso_assets = {
     'Greece':    'projects/sat-io/open-datasets/JRC/GHS-OBAT/GHS_OBAT_GPKG_GRC_E2020_R2024A_V1_0'
 }
 
-#  List of regions to loop through
+
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+out_dir = os.path.join(parent_dir, "data", "output")
+boundaries_dir = os.path.join(parent_dir, "Demo Boundaries")
+# Create output folders
+output_dir = os.path.join(out_dir, "ghs_epoch_rasters")
+os.makedirs(output_dir, exist_ok=True) #make sure output directory exists
+
+# === Define Regions ===
 regions_info = [
-    {'region': 'Split_Dalmatia', 'country': 'Croatia', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Croatia\Split_Dalmatia.shp'},
-    {'region': 'Macedonia_Thrace', 'country': 'Greece', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Greece\Macedonia_Thrace.shp'},
-    {'region': 'Potenza', 'country': 'Italy', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Italy\Potenza.shp'},
-    {'region': 'Corse_du_Sud', 'country': 'France', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\France\Corse_du_Sud.shp'},
-    {'region': 'Sardegna', 'country': 'Italy', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Italy\Sardegna.shp'},
-    {'region': 'Beiras_Centro', 'country': 'Portugal', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Portugal\Beiras_Centro.shp'},
-    {'region': 'Nicosia', 'country': 'Cyprus', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Cyprus\Nicosia.shp'},
-    {'region': 'Valencia', 'country': 'Spain', 'shapefile': r'C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\case_study_locations\Spain\Valencia.shp'}
+    {'region': 'Split_Dalmatia', 'country': 'Croatia', 'shapefile': os.path.join(boundaries_dir, "Croatia", "Split_Dalmatia.shp")},
+    {'region': 'Macedonia_Thrace', 'country': 'Greece', 'shapefile': os.path.join(boundaries_dir, "Greece", "Macedonia_Thrace.shp")},
+    {'region': 'Potenza', 'country': 'Italy', 'shapefile': os.path.join(boundaries_dir, "Italy", "Potenza.shp")},
+    {'region': 'Corse_du_Sud', 'country': 'France', 'shapefile': os.path.join(boundaries_dir, "France", "Corse_du_Sud.shp")},
+    {'region': 'Sardegna', 'country': 'Italy', 'shapefile': os.path.join(boundaries_dir, "Italy", "Sardegna.shp")},
+    {'region': 'Beiras_Centro', 'country': 'Portugal', 'shapefile': os.path.join(boundaries_dir, "Portugal", "Beiras_Centro.shp")},
+    {'region': 'Nicosia', 'country': 'Cyprus', 'shapefile': os.path.join(boundaries_dir, "Cyprus", "Nicosia.shp")},
+    {'region': 'Valencia', 'country': 'Spain', 'shapefile': os.path.join(boundaries_dir, "Spain", "Valencia.shp")}
 ]
 
-# Create output folder
-output_dir = "ghs_epoch_rasters"
-os.makedirs(output_dir, exist_ok=True)
 
 def gdf_to_ee(gdf):
     return ee.Geometry(gdf.geometry.union_all().__geo_interface__)
@@ -84,9 +90,10 @@ for item in regions_info:
 
         if not os.path.exists(tif_path):
             url = image.getDownloadURL({
-                'scale': 30,
+                'scale': 150,
                 'region': bbox,
-                'format': 'GEO_TIFF'
+                'format': 'GEO_TIFF',
+                'maxPixels': 1e9
             })
             urlretrieve(url, tif_path)
 
