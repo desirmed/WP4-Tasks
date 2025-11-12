@@ -1,98 +1,88 @@
-import os
-import re
-import time
-import ee
+#%%
+
+
+# # Define Earth Engine ERA5 dataset and filter by date
+# era5 = ee.ImageCollection('ECMWF/ERA5_LAND/MONTHLY_AGGR') \
+#     .filter(ee.Filter.date('2000-01-01', '2025-01-01')) \
+#     .select('total_precipitation_sum')
+
+# # Set spatial extent to cover all of Croatia with some buffer
+# # Automatically zoom to each country — uncomment as needed
+
+# # Portugal
+# # plt.xlim(-10.0, -6.0)   # Longitude range
+# # plt.ylim(36.5, 42.5)    # Latitude range
+
+# # Italy
+# plt.xlim(6.0, 19.0)
+# plt.ylim(36.0, 47.5)
+
+# # France
+# # plt.xlim(-5.0, 9.5)
+# # plt.ylim(41.0, 51.5)
+
+# # Croatia
+# # plt.xlim(13.0, 20.5)
+# # plt.ylim(42.0, 47.0)
+
+# # Cyprus
+# # plt.xlim(32.0, 34.0)
+# # plt.ylim(34.5, 35.7)
+
+# # Spain
+# # plt.xlim(-9.5, 4.5)
+# # plt.ylim(36.0, 44.5)
+
+# # plt.suptitle("Standardized Precipitation Index", fontsize=16)
+# plt.show()
+
+#%%
+#======  New script cell  ======    
+# The previous script would not work since python relies on xarray and would require a custom ee-xarray engine.
+# A workaround is to export the data from GEE as GeoTIFFs and then process them locally with xarray.
+# To do that, you can use the following code ERA5_Italy.js to export the Geotiffs, then you need to process them using those lines of code
+# This is not the most elegant way, consider to downlooad ERA5 netcdf directly
+
 import xarray as xr
-import rioxarray as rxr
-import climate_indices
-from climate_indices import indices
-import matplotlib.pyplot as plt
-import geopandas as gpd
+import os
+import glob
+import rioxarray
+import pandas as pd
 import numpy as np
+import time
+import matplotlib.pyplot as plt
+from climate_indices import indices, compute
 
-# Set connection pool size for Earth Engine to avoid warnings
-os.environ['PYTHON_EE_CONNECTION_POOL_SIZE'] = '50'
+# ---------------------- 1. Load GeoTIFF ----------------------
+# load .tif from your repository - to get the data use the ERA5_Italy.js code
 
-# Define input and output directories
-data_folder = 'data'
-output_folder = 'output'
+ds = rioxarray.open_rasterio(r"C:\Users\ERA5_Italy_2000_2024.tif")
 
-os.makedirs(data_folder, exist_ok=True)
-os.makedirs(output_folder, exist_ok=True)
+# Remove extra dimension if exists
+da = ds.squeeze()
 
-# Function to download a file from a URL if not already present
-def download(url):
-    filename = os.path.join(data_folder, os.path.basename(url))
-    if not os.path.exists(filename):
-        from urllib.request import urlretrieve
-        local, _ = urlretrieve(url, filename)
-        print('Downloaded:', local)
+# Rename spatial dims from x,y → lon,lat (important!)
+if 'x' in da.dims and 'y' in da.dims:
+    da = da.rename({'x': 'lon', 'y': 'lat'})
 
-# Download a shapefile from Natural Earth
-data_url = 'https://naciscdn.org/naturalearth/10m/cultural/'
-shapefile = 'ne_10m_admin_0_countries_ind.zip'
-download(data_url + shapefile)
+# Rename band → time
+da = da.rename({'band': 'time'})
 
-# Initialize Earth Engine
-cloud_project = 'XXXXXXXXXXXX'  # Replace with your GEE project ID
+# Create proper monthly timestamps
+da = da.assign_coords(time=pd.date_range('2000-01-01', periods=da.sizes['time'], freq='M'))
 
-try:
-    ee.Initialize(project=cloud_project, opt_url='https://earthengine-highvolume.googleapis.com')
-except Exception:
-    ee.Authenticate()
-    ee.Initialize(project=cloud_project, opt_url='https://earthengine-highvolume.googleapis.com')
-
-# Load shapefile and extract India
-shapefile_path = os.path.join(data_folder, shapefile)
-gdf = gpd.read_file(shapefile_path, encoding='utf-8')
-
-# Select one country by ISO code — uncomment only the one you want to use
-
-# country = gdf[gdf['SOV_A3'] == 'PRT']   # Portugal
-country = gdf[gdf['SOV_A3'] == 'ITA']   # Italy
-# country = gdf[gdf['SOV_A3'] == 'FRA']   # France
-# country = gdf[gdf['SOV_A3'] == 'HRV']   # Croatia
-# country = gdf[gdf['SOV_A3'] == 'CYP']   # Cyprus
-# country = gdf[gdf['SOV_A3'] == 'ESP']     # Spain
-
-
-# Define Earth Engine ERA5 dataset and filter by date
-era5 = ee.ImageCollection('ECMWF/ERA5_LAND/MONTHLY_AGGR') \
-    .filter(ee.Filter.date('2000-01-01', '2025-01-01')) \
-    .select('total_precipitation_sum')
-
-# Convert country geometry to EE and get bounds
-geometry = country.geometry.union_all()
-bounds = geometry.bounds
-
-# ⚠ This part may not work without a custom xarray engine. Replace as needed.
-
-ds = xr.open_dataset(
-    era5,
-    engine='ee',
-    projection=era5.first().select(0).projection(),
-    geometry=bounds
-)
-
-# Extract and preprocess data
-da = ds.total_precipitation_sum
-da = da.sortby(['lat', 'lon']).fillna(0.0)
-
-# Group data by pixel for SPI computation
-da_precip_groupby = da.stack(pixel=('lat', 'lon')).groupby('pixel')
-
-# SPI configuration
+# ---------------------- 2. SPI Function ----------------------
 scale = 3
-distribution = climate_indices.indices.Distribution.gamma
+distribution = indices.Distribution.gamma
 data_start_year = 2000
 calibration_year_initial = 2000
 calibration_year_final = 2024
-periodicity = climate_indices.compute.Periodicity.monthly
+periodicity = compute.Periodicity.monthly
 
-# Function to calculate SPI for a pixel
-def calculate_spi(group):
-    spi_values = climate_indices.indices.spi(
-        group.values,
+def spi_func(precip_series):
+    precip_series = np.array(precip_series, dtype=float)
+    return indices.spi(
+        precip_series,
         scale,
         distribution,
         data_start_year,
@@ -100,58 +90,95 @@ def calculate_spi(group):
         calibration_year_final,
         periodicity
     )
-    return xr.DataArray(spi_values, coords={'time': group.time}, dims=['time'])
 
-# --- TIMED SPI calculation ---
+# ---------------------- 3. Apply to every pixel ----------------------
 start = time.time()
 
-da_spi = da_precip_groupby.apply(calculate_spi)
+spi_da = xr.apply_ufunc(
+    spi_func,
+    da,
+    input_core_dims=[["time"]],
+    output_core_dims=[["time"]],
+    vectorize=True,               # Apply to each pixel independently
+    dask="parallelized",          # Optional — speeds up
+    output_dtypes=[float],
+)
+
+spi_da = spi_da.assign_coords(time=da.time)
+spi_da.name = "SPI"
 
 end = time.time()
-print(f"SPI calculation completed in {end - start:.2f} seconds")
+print(f"SPI computation took {end - start:.2f} seconds")
 
-# Convert back to 2D
-da_spi = da_spi.unstack('pixel')
+# ---------------------- 4. Plot 2024 maps ----------------------
+spi_2024 = spi_da.sel(time='2024')
 
-# Plot SPI for a specific year
-selected = da_spi.sel(time='2024')
-legend_levels = [-3, -2, -1, 0, 1, 2, 3]
-
-# Plot with more visible context
-selected.plot(
+spi_2024.plot(
     cmap='RdBu',
     col='time',
     col_wrap=4,
-    levels=legend_levels,
+    levels=[-3, -2, -1, 0, 1, 2, 3],
     aspect=1.2
 )
 
-# Set spatial extent to cover all of Croatia with some buffer
-# Automatically zoom to each country — uncomment as needed
-
-# Portugal
-# plt.xlim(-10.0, -6.0)   # Longitude range
-# plt.ylim(36.5, 42.5)    # Latitude range
-
-# Italy
 plt.xlim(6.0, 19.0)
 plt.ylim(36.0, 47.5)
 
-# France
-# plt.xlim(-5.0, 9.5)
-# plt.ylim(41.0, 51.5)
+# Now you can save it as .csv, .tiff, .nc (preferably)
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+out_dir = os.path.join(parent_dir, "data", "output")
+spi_dir = os.path.join(out_dir, "spi") #create output directory
+os.makedirs(spi_dir, exist_ok=True) #make sure output directory exists
 
-# Croatia
-# plt.xlim(13.0, 20.5)
-# plt.ylim(42.0, 47.0)
+df = spi_da.to_dataframe(name='SPI').reset_index()
+csv_path = os.path.join(spi_dir, "SPI_Italy_2000_2024.csv")
+df.to_csv(csv_path, index=False)
 
-# Cyprus
-# plt.xlim(32.0, 34.0)
-# plt.ylim(34.5, 35.7)
+output_nc = "SPI_Italy_2000_2024.nc"
+# Add metadata
+spi_da.attrs["title"] = "Standardized Precipitation Index (SPI)"
+spi_da.attrs["summary"] = "SPI calculated from ERA5 monthly precipitation for Italy (2000–2024)"
+spi_da.attrs["source"] = "ERA5-Land Monthly Aggregated Precipitation"
+spi_da.attrs["methodology"] = "SPI computed using gamma distribution and 3-month scale via climate_indices"
+spi_da.attrs["projection"] = "EPSG:4326 (WGS84)"
+spi_da.attrs["history"] = "Created with Python and xarray"
+nc_path = os.path.join(spi_dir, output_nc)
+spi_da.to_netcdf(nc_path)
 
-# Spain
-# plt.xlim(-9.5, 4.5)
-# plt.ylim(36.0, 44.5)
 
-# plt.suptitle("Standardized Precipitation Index", fontsize=16)
-plt.show()
+# save all years as single GeoTIFF
+#output_tif = "SPI_Italy_2000_2024.tif"
+# output_path = "SPI_Italy_2000_2024.tif"
+# spi_da.rio.to_raster(output_path)
+# save only one year as GeoTIFF
+
+
+# Select SPI for 2024
+spi_2024 = spi_da.sel(time='2024')
+
+# Rename spatial dimensions and assign CRS
+spi_2024 = spi_2024.rename({'lat': 'y', 'lon': 'x'}).rio.write_crs("EPSG:4326")
+
+# Reorder dimensions: ('time', 'y', 'x')
+spi_2024 = spi_2024.transpose('time', 'y', 'x')
+
+# Loop over each month
+for i, t in enumerate(spi_2024.time.values):
+    month_da = spi_2024.isel(time=i)
+    month_str = pd.to_datetime(str(t)).strftime("%Y_%m")
+    output_tif = f"SPI_Italy_{month_str}.tif"
+    tif_path = os.path.join(spi_dir, output_tif)
+    
+    # Remove existing file if present
+    if os.path.exists(tif_path):
+        try:
+            os.remove(tif_path)
+        except PermissionError:
+            raise PermissionError(f"Close the file {tif_path} if it's open.")
+    
+    # Save GeoTIFF
+    month_da.rio.to_raster(tif_path)
+    print(f"✅ Saved: {tif_path}")
+
+# %%
