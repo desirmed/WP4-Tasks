@@ -5,26 +5,26 @@ import xarray as xr
 
 # 1. Define filename and URL for surface air temperature
 # if it breaks, copy paste the following link to your browser. Download will start automatically.
-# https://psl.noaa.gov/data/gridded/data.ncep.reanalysis.derived.surface.html 
-filename = 'air.mon.mean.nc'
-url = 'https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis.derived/surface/air.mon.mean.nc'
+# https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis.derived/surface/air.mon.mean.nc 
+# filename = 'air.mon.mean.nc'
+# url = 'https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis.derived/surface/air.mon.mean.nc'
 
-# 2. Download only if not already present
-if not os.path.exists(filename):
-    print(f"Downloading {filename}...")
-    response = requests.get(url)
-    with open(filename, 'wb') as f:
-        f.write(response.content)
-    print("Download complete.")
-else:
-    print(f"{filename} already exists. Skipping download.")
+# # 2. Download only if not already present
+# if not os.path.exists(filename):
+#     print(f"Downloading {filename}...")
+#     response = requests.get(url)
+#     with open(filename, 'wb') as f:
+#         f.write(response.content)
+#     print("Download complete.")
+# else:
+#     print(f"{filename} already exists. Skipping download.")
 
-# 3. Load NetCDF file with xarray
-ds = xr.open_dataset(filename)
-air = ds['air']
+# # 3. Load NetCDF file with xarray
+# ds = xr.open_dataset(filename)
+# air = ds['air']
 
-# Check basic info
-print(air)
+# # Check basic info
+# print(air)
 
 #%%
 
@@ -36,7 +36,15 @@ import pandas as pd
 import os
 
 # 1. Load temperature dataset
-file_path = r"C:\Users\Downloads\air.mon.mean.nc" # Update with your local path
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+input_dir = os.path.join(parent_dir, "data", "input")
+out_dir = os.path.join(parent_dir, "data", "output")
+
+air_temperature_dir = os.path.join(out_dir, "air_temperature") #create output directory
+os.makedirs(air_temperature_dir, exist_ok=True) #make sure output directory exists
+
+file_path = os.path.join(input_dir, 'air.mon.mean.nc') #Downlod the file manually and place it here
 ds = xr.open_dataset(file_path)
 
 # 2. Fix longitude format
@@ -128,13 +136,12 @@ plt.show()
 
 
 # %%
-out_dir = r"C:\Users\" # specify your output directory here
+# 1. Set spatial dimensions
 da = anomaly2024.rename({'lon': 'x', 'lat': 'y'})
-# 2. Set spatial dimensions
 da = da.rio.set_spatial_dims(x_dim='x', y_dim='y')
-# 3. Assign CRS (WGS84)
+# 2. Assign CRS (WGS84)
 da= da.rio.write_crs("EPSG:4326", inplace=True)  # set CRS (WGS84)
-# 4. reduce dtype for smaller files
+# 3. reduce dtype for smaller files
 da = da.astype('float32')
 
 # 5. write compressed multi-band GTiff (time->bands)
@@ -158,14 +165,33 @@ da = da.astype('float32')
 for i in range(da.sizes['time']):
     arr = da.isel(time=i)
     date_str = pd.to_datetime(arr.time.values).strftime("%Y-%m")
-    out_file = os.path.join(out_dir, f"temperature_anomaly_MED_{date_str}.tif")
+    out_file = os.path.join(air_temperature_dir, f"air_temperature_anomaly_MED_{date_str}.tif")
     arr.rio.to_raster(out_file, driver="GTiff", compress="LZW", tiled=True)
     print("Wrote:", out_file)
-
 # if you have a shapefile boundary, you can use:
 # import geopandas as gpd
 # boundary = gpd.read_file("path_to_your_shapefile.shp")
 # da = da.rio.clip(boundary.geometry, boundary.crs)
 
 
-# %%
+# %% Save air temperature for the Mediterranean region only
+da = air_2024.rename({'lon': 'x', 'lat': 'y'})
+# 2. Set spatial dimensions
+da = da.rio.set_spatial_dims(x_dim='x', y_dim='y')
+# 3. Assign CRS (WGS84)
+da= da.rio.write_crs("EPSG:4326", inplace=True)  # set CRS (WGS84)
+# 4. reduce dtype for smaller files
+da = da.astype('float32')
+# Clip to bounding box: [min_lon, min_lat, max_lon, max_lat]
+da = da.rio.clip_box(minx=-10, miny=35, maxx=30, maxy=50)
+
+# Reduce dtype
+da = da.astype('float32')
+
+# Save each time slice as compressed GeoTIFF
+for i in range(da.sizes['time']):
+    arr = da.isel(time=i)
+    date_str = pd.to_datetime(arr.time.values).strftime("%Y-%m")
+    out_file = os.path.join(air_temperature_dir, f"air_temperature_MED_{date_str}.tif")
+    arr.rio.to_raster(out_file, driver="GTiff", compress="LZW", tiled=True)
+    print("Wrote:", out_file)
