@@ -2,10 +2,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math
+import os   
+
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+inp_path = os.path.join(parent_dir, "data", "input", "ZonalPop_LongFormat_1975_2030.csv")
+out_dir = os.path.join(parent_dir, "data", "output")
+output_dir = os.path.join(out_dir, "population_change")
+os.makedirs(output_dir, exist_ok=True) #make sure output directory exists
 
 # === Load the cleaned long-format population dataset ===
-file_path = r"C:\Users\Gebruiker\OneDrive\DesirMED info\Paper\CLEAN_ZonalPop_ByRegion_1975_2030.csv"
-df = pd.read_csv(file_path)
+df = pd.read_csv(inp_path)
 
 # === Set seaborn style ===
 sns.set(style="whitegrid")
@@ -45,4 +52,5 @@ for j in range(i + 1, len(axes)):
 
 # === Add super title ===
 fig.suptitle("Regional Population per Year (1975–2030)", fontsize=18)
-plt.show()
+
+plt.savefig(os.path.join(output_dir, "regional_population_per_year.png"), dpi=300)
